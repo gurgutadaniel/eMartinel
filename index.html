@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Harta și Raportare Pericole</title>
+    <title>eMartinel - Raportare Pericole</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
         integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
         crossorigin=""/>
@@ -19,29 +19,18 @@
             border: 1px solid #ddd;
             border-radius: 5px;
             background-color: #f9f9f9;
-        }
-        #report-form h2 {
             text-align: center;
         }
-        #report-form label {
-            display: block;
-            margin: 10px 0 5px;
-        }
-        #report-form select, #report-form textarea {
-            width: 100%;
-            margin-bottom: 10px;
-        }
-        #report-form button {
-            display: block;
-            width: 100%;
+        #report-form button, #report-form input[type="button"] {
             padding: 10px;
+            margin: 5px;
             background-color: #007bff;
             color: #fff;
             border: none;
             border-radius: 5px;
             cursor: pointer;
         }
-        #report-form button:hover {
+        #report-form button:hover, #report-form input[type="button"]:hover {
             background-color: #0056b3;
         }
     </style>
@@ -50,27 +39,9 @@
     <h1>eMartinel - Raportare Pericole</h1>
     <div id="map"></div>
 
-    <!-- Form for reporting hazards -->
     <div id="report-form">
-        <h2>Raportează Pericol</h2>
-        <form id="hazard-form">
-            <label for="type">Tip Pericol:</label>
-            <select id="type" name="type">
-                <option value="animal">Animal</option>
-                <option value="weather">Vreme</option>
-                <option value="trail">Condiție Drum</option>
-            </select>
-            <label for="animal-type" id="animal-type-label" style="display: none;">Tip Animal:</label>
-            <select id="animal-type" name="animal-type" style="display: none;">
-                <option value="bear">Urs</option>
-                <option value="wolf">Lup</option>
-                <option value="deer">Căprioară</option>
-                <!-- Add more options as needed -->
-            </select>
-            <label for="description">Descriere:</label>
-            <textarea id="description" name="description" rows="4" cols="50" required></textarea>
-            <button type="submit">Raportează</button>
-        </form>
+        <input type="button" id="locate-user" value="Localizează-mă">
+        <button id="report-bear">Raportează Urs</button>
     </div>
 
     <!-- Include Leaflet JS -->
@@ -78,71 +49,103 @@
         integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
         crossorigin=""></script>
 
-    <!-- Your custom JavaScript -->
-    <script>
-        // Initialize the map and set its view to Bucharest
-        var map = L.map('map').setView([44.4268, 26.1025], 13);
+    <!-- Include Firebase JS SDK -->
+    <script type="module">
+      import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
+      import { getFirestore, doc, setDoc } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
 
-        // Add a tile layer to the map
-        L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            maxZoom: 19,
-            attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-        }).addTo(map);
+      // Your web app's Firebase configuration
+      const firebaseConfig = {
+        apiKey: "AIzaSyATYbYDW9...",
+        authDomain: "emartinel.firebaseapp.com",
+        projectId: "emartinel",
+        storageBucket: "emartinel.appspot.com",
+        messagingSenderId: "979456933137",
+        appId: "1:979456933137:web:822645b084d26b030360b0",
+        measurementId: "G-96NR1VCT0E"
+      };
 
-        // Icon definitions for different animals
-        var icons = {
-            bear: L.icon({
-                iconUrl: 'https://cdn.icon-icons.com/icons2/4233/PNG/512/chase_canine_patrol_paw_patrol_icon_263864.png', // Replace with your icon URL
-                iconSize: [32, 32],
-                iconAnchor: [16, 32],
-                popupAnchor: [0, -32]
-            }),
-            wolf: L.icon({
-                iconUrl: 'https://cdn.icon-icons.com/icons2/4233/PNG/512/chase_canine_patrol_paw_patrol_icon_263864.png', // Replace with your icon URL
-                iconSize: [32, 32],
-                iconAnchor: [16, 32],
-                popupAnchor: [0, -32]
-            }),
-            deer: L.icon({
-                iconUrl: 'https://cdn.icon-icons.com/icons2/4233/PNG/512/chase_canine_patrol_paw_patrol_icon_263864.png', // Replace with your icon URL
-                iconSize: [32, 32],
-                iconAnchor: [16, 32],
-                popupAnchor: [0, -32]
-            })
-        };
+      // Initialize Firebase
+      const app = initializeApp(firebaseConfig);
+      const db = getFirestore(app);
 
-        // Handle form submission
-        document.getElementById('hazard-form').addEventListener('submit', function(event) {
-            event.preventDefault();
-            const type = document.getElementById('type').value;
-            const animalType = document.getElementById('animal-type').value;
-            const description = document.getElementById('description').value;
-            const currentDate = new Date();
-            const formattedDate = `${currentDate.getHours()}:${currentDate.getMinutes()} - ${currentDate.toLocaleDateString()}`;
+      // Initialize the map and set its view to Bucharest
+      var map = L.map('map').setView([44.4268, 26.1025], 13);
 
-            if (type === 'animal' && animalType) {
-                const icon = icons[animalType];
-                L.marker([44.4268, 26.1025], {icon: icon}).addTo(map)
-                    .bindPopup(`<b>Tip Animal:</b> ${animalType}<br><b>Descriere:</b> ${description}<br><b>Raportat la:</b> ${formattedDate}`)
-                    .openPopup();
-            }
+      // Add a tile layer to the map
+      L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+          maxZoom: 19,
+          attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+      }).addTo(map);
 
-            // Clear the form
-            document.getElementById('hazard-form').reset();
-        });
+      // Icon definition for bear
+      var bearIcon = L.icon({
+          iconUrl: 'https://cdn.icon-icons.com/icons2/1929/PNG/512/iconfinder-bear-4591876_122109.png', // Replace with your icon URL
+          iconSize: [32, 32],
+          iconAnchor: [16, 32],
+          popupAnchor: [0, -32]
+      });
 
-        // Show or hide the animal type dropdown based on hazard type
-        document.getElementById('type').addEventListener('change', function() {
-            const animalTypeSelect = document.getElementById('animal-type');
-            const animalTypeLabel = document.getElementById('animal-type-label');
-            if (this.value === 'animal') {
-                animalTypeSelect.style.display = 'block';
-                animalTypeLabel.style.display = 'block';
-            } else {
-                animalTypeSelect.style.display = 'none';
-                animalTypeLabel.style.display = 'none';
-            }
-        });
+      var bearMarker;
+      var currentLatLng;
+
+      // Event listener for the locate user button
+      document.getElementById('locate-user').addEventListener('click', function() {
+          if (navigator.geolocation) {
+              navigator.geolocation.getCurrentPosition(function(position) {
+                  var userLatLng = [position.coords.latitude, position.coords.longitude];
+                  currentLatLng = userLatLng;
+                  map.setView(userLatLng, 15);
+
+                  // If marker exists, remove it
+                  if (bearMarker) {
+                      map.removeLayer(bearMarker);
+                  }
+
+                  // Add marker to the user's location and make it draggable
+                  bearMarker = L.marker(userLatLng, {icon: bearIcon, draggable: true}).addTo(map)
+                      .bindPopup("Aici este locația ta. Mută markerul pentru a indica locația ursului.")
+                      .openPopup();
+
+                  bearMarker.on('dragend', function(e) {
+                      currentLatLng = e.target.getLatLng();
+                      bearMarker.bindPopup("Locația actualizată.").openPopup();
+                  });
+
+              }, function() {
+                  alert('Localizarea a eșuat. Te rugăm să permiți accesul la locație.');
+              });
+          } else {
+              alert('Geolocația nu este suportată de acest browser.');
+          }
+      });
+
+      // Function to save bear report to Firestore
+      async function saveBearReport(latlng) {
+          try {
+              const reportData = {
+                  animal: 'urs',
+                  lat: latlng.lat,
+                  lng: latlng.lng,
+                  timestamp: new Date().toISOString()
+              };
+              // Create a new document in the 'reports' collection with an auto-generated ID
+              await setDoc(doc(db, 'reports', `${Date.now()}`), reportData);
+              alert('Raportul a fost salvat cu succes!');
+          } catch (error) {
+              console.error('Eroare la salvarea raportului:', error);
+              alert('Eroare la salvarea raportului.');
+          }
+      }
+
+      // Event listener for the report bear button
+      document.getElementById('report-bear').addEventListener('click', function() {
+          if (currentLatLng) {
+              saveBearReport(currentLatLng);
+          } else {
+              alert('Te rugăm să folosești butonul "Localizează-mă" pentru a seta locația.');
+          }
+      });
     </script>
 </body>
 </html>
